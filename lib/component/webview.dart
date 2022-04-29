@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:english4you/component/database_helper.dart';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:http/http.dart';
 
 class MyWebViewWidget extends StatefulWidget {
   const MyWebViewWidget({Key? key}) : super(key: key);
@@ -29,7 +31,9 @@ class _MyWebViewWidgetState extends State<MyWebViewWidget> {
 
   String cambridgeAPI =
       'https://dictionary.cambridge.org/dictionary/english-vietnamese/';
-      List<MyNewWords> fetch = [];
+  List<MyNewWords> fetch = [];
+  String googleAPI =
+      'https://googledictionary.freecollocation.com/meaning?word=';
   @override
   void initState() {
     super.initState();
@@ -65,26 +69,122 @@ class _MyWebViewWidgetState extends State<MyWebViewWidget> {
                       return ListView(
                         children: [
                           ...fetch.map((item) => ListTile(
-                            trailing: IconButton(
-                                onPressed: () async {
-                                  helper.deleteWord(item.title ?? 'nothing');
-                                  var fetch1 = await helper.queryAll();
-                                  setState(() {
-                                    fetch = fetch1;
-                                  });
+                                trailing: IconButton(
+                                    onPressed: () async {
+                                      helper
+                                          .deleteWord(item.title ?? 'nothing');
+                                      var fetch1 = await helper.queryAll();
+                                      setState(() {
+                                        fetch = fetch1;
+                                      });
+                                    },
+                                    icon: Icon(
+                                      Icons.delete,
+                                      color: Colors.red,
+                                    )),
+                                leading: const Icon(
+                                  Icons.web_asset,
+                                  color: Colors.green,
+                                ),
+                                title: Text(item.title ?? 'nothing'),
+                                onTap: () async {
+                                  // controller.loadUrl(
+                                  //     googleAPI + (item.title ?? 'nothing'));
+                                  // Navigator.pop(context);
+
+                                  EasyLoading.show(status: 'Loading...');
+                                  String url =
+                                      'https://api.dictionaryapi.dev/api/v2/entries/en/' +
+                                          (item.title ?? 'nothing');
+                                  Response response = await get(Uri.parse(url));
+                                  EasyLoading.dismiss();
+                                  // data sample trả về trong response
+                                  int statusCode = response.statusCode;
+                                  String value = response.body;
+                                  List<dynamic> valueMap = json.decode(value);
+                                  print('json===$valueMap');
+                                  print('statusCode===$statusCode');
+                                  dynamic valueMapReal = valueMap[0];
+
+                                  String words = valueMapReal['word'];
+                                  String phoneNic = valueMapReal['phonetic'] ?? valueMapReal['phonetics'].join('/');
+                                  List<dynamic> meanings =
+                                      valueMapReal['meanings'];
+
+                                  showModalBottomSheet(
+                                      context: context,
+                                      builder: (context) {
+                                        return Padding(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: ListView(
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            8.0),
+                                                    child: Text(words),
+                                                  )
+                                                ],
+                                              ),
+                                              Row(
+                                                children: [
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.all(
+                                                            8.0),
+                                                    child: Text(phoneNic),
+                                                  )
+                                                ],
+                                              ),
+                                              Text('Meaning'),
+                                              ...meanings.map((item) => Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment.start,
+                                                    children: [
+                                                      Expanded(
+                                                        child: Container(
+                                                          child: Column(
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .start,
+                                                            crossAxisAlignment:
+                                                                CrossAxisAlignment
+                                                                    .start,
+                                                            children: [
+                                                              Text(
+                                                                item[
+                                                                    'partOfSpeech'],
+                                                                style: TextStyle(
+                                                                    fontSize:
+                                                                        18,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold),
+                                                              ),
+                                                              ...item['definitions']
+                                                                  .map((element) =>
+                                                                      Padding(
+                                                                        padding:
+                                                                            const EdgeInsets.all(10.0),
+                                                                        child: SizedBox(
+                                                                            child: Text(element['definition'] +
+                                                                                '\nex: ' +
+                                                                                (element['example'] ?? ''))),
+                                                                      ))
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      )
+                                                    ],
+                                                  ))
+                                            ],
+                                          ),
+                                        );
+                                      });
                                 },
-                                icon: Icon(Icons.delete, color: Colors.red,)),
-                            leading: const Icon(
-                              Icons.web_asset,
-                              color: Colors.green,
-                            ),
-                            title: Text(item.title ?? 'nothing'),
-                            onTap: () {
-                              controller.loadUrl(cambridgeAPI +
-                                  (item.title ?? 'nothing'));
-                              Navigator.pop(context);
-                            },
-                          )),
+                              )),
                         ],
                       );
                     });
@@ -176,46 +276,91 @@ class _MyWebViewWidgetState extends State<MyWebViewWidget> {
           if (cdata!.text != null) {
             print("data===${cdata.text}");
 
-            if (cdata.text != null) {
-              DatabaseHelper helper = DatabaseHelper.instance;
-              MyNewWords word = MyNewWords();
-              word.title = cdata.text;
-              MyNewWords? fetch = await helper.search(cdata.text);
-              if (fetch == null) {
-                helper.insert(word);
-                print('insert new words....');
-              }
+            DatabaseHelper helper = DatabaseHelper.instance;
+            MyNewWords word = MyNewWords();
+            word.title = cdata.text;
+            MyNewWords? fetch = await helper.search(cdata.text);
+            if (fetch == null) {
+              helper.insert(word);
+              print('insert new words....');
             }
+            EasyLoading.show(status: 'Loading...');
+            String url = 'https://api.dictionaryapi.dev/api/v2/entries/en/' +
+                (cdata.text ?? 'nothing');
+            Response response = await get(Uri.parse(url));
+            EasyLoading.dismiss();
+            // data sample trả về trong response
+            int statusCode = response.statusCode;
+            String value = response.body;
+            List<dynamic> valueMap = json.decode(value);
+            print('json===$valueMap');
+            print('statusCode===$statusCode');
+            dynamic valueMapReal = valueMap[0];
+
+            String words = valueMapReal['word'];
+            String phoneNic = valueMapReal['phonetic'] ?? valueMapReal['phonetics'].join('/');
+            List<dynamic> meanings = valueMapReal['meanings'];
+
             showModalBottomSheet(
                 context: context,
                 builder: (context) {
-                  return ListView(
-                    children: [
-                      Container(
-                        height: 6000,
-                        child: WebView(
-                          javascriptMode: JavascriptMode.unrestricted,
-                          initialUrl: cambridgeAPI + (cdata.text ?? 'nothing'),
-                          onWebViewCreated: (controller) {},
-                          onPageStarted: (url) {
-                            print('==========================' + url);
-                            EasyLoading.show(status: 'Loading...');
-                          },
-                          onPageFinished: (url) {
-                            print('============onPageFinished==============' +
-                                url);
-                            EasyLoading.dismiss();
-                          },
-                          onProgress: (value) {
-                            if (value == 100) EasyLoading.dismiss();
-
-                            Timer(const Duration(seconds: 3), () {
-                              EasyLoading.dismiss();
-                            });
-                          },
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: ListView(
+                      children: [
+                        Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(words),
+                            )
+                          ],
                         ),
-                      ),
-                    ],
+                        Row(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(phoneNic),
+                            )
+                          ],
+                        ),
+                        Text('Meaning'),
+                        ...meanings.map((item) => Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item['partOfSpeech'],
+                                          style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold),
+                                        ),
+                                        ...item['definitions'].map((element) =>
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(10.0),
+                                              child: SizedBox(
+                                                  child: Text(
+                                                      element['definition'] +
+                                                          '\nex: ' +
+                                                          (element['example'] ??
+                                                              ''))),
+                                            ))
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              ],
+                            ))
+                      ],
+                    ),
                   );
                 });
           } else {
