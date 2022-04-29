@@ -1,4 +1,11 @@
 # This is a generated file; do not edit or check into version control.
+path_provider=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\path_provider-2.0.9\\
+path_provider_android=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\path_provider_android-2.0.13\\
+path_provider_ios=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\path_provider_ios-2.0.8\\
+path_provider_linux=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\path_provider_linux-2.1.5\\
+path_provider_macos=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\path_provider_macos-2.0.5\\
+path_provider_windows=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\path_provider_windows-2.0.5\\
+sqflite=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\sqflite-2.0.2+1\\
 webview_flutter=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\webview_flutter-3.0.2\\
 webview_flutter_android=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\webview_flutter_android-2.8.5\\
 webview_flutter_wkwebview=D:\\flutter\\.pub-cache\\hosted\\pub.dartlang.org\\webview_flutter_wkwebview-2.7.2\\

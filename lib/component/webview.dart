@@ -1,8 +1,11 @@
 import 'dart:async';
 
+import 'package:english4you/component/database_helper.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:sqflite/sqflite.dart';
 
 class MyWebViewWidget extends StatefulWidget {
   const MyWebViewWidget({Key? key}) : super(key: key);
@@ -23,6 +26,10 @@ class _MyWebViewWidgetState extends State<MyWebViewWidget> {
     'https://www.tomshardware.com/',
     'https://lifehacker.com/'
   ];
+
+  String cambridgeAPI =
+      'https://dictionary.cambridge.org/dictionary/english-vietnamese/';
+      List<MyNewWords> fetch = [];
   @override
   void initState() {
     super.initState();
@@ -48,6 +55,41 @@ class _MyWebViewWidgetState extends State<MyWebViewWidget> {
         // the App.build method, and use it to set our appbar title.
         title: const Text('English4You'),
         actions: [
+          IconButton(
+              onPressed: () async {
+                DatabaseHelper helper = DatabaseHelper.instance;
+                fetch = await helper.queryAll();
+                showModalBottomSheet(
+                    context: context,
+                    builder: (context) {
+                      return ListView(
+                        children: [
+                          ...fetch.map((item) => ListTile(
+                            trailing: IconButton(
+                                onPressed: () async {
+                                  helper.deleteWord(item.title ?? 'nothing');
+                                  var fetch1 = await helper.queryAll();
+                                  setState(() {
+                                    fetch = fetch1;
+                                  });
+                                },
+                                icon: Icon(Icons.delete, color: Colors.red,)),
+                            leading: const Icon(
+                              Icons.web_asset,
+                              color: Colors.green,
+                            ),
+                            title: Text(item.title ?? 'nothing'),
+                            onTap: () {
+                              controller.loadUrl(cambridgeAPI +
+                                  (item.title ?? 'nothing'));
+                              Navigator.pop(context);
+                            },
+                          )),
+                        ],
+                      );
+                    });
+              },
+              icon: Icon(Icons.file_present)),
           IconButton(
               onPressed: () {
                 controller.goBack();
@@ -103,7 +145,7 @@ class _MyWebViewWidgetState extends State<MyWebViewWidget> {
                       );
                     });
               },
-              icon: const Icon(Icons.home))
+              icon: const Icon(Icons.more_vert_outlined))
         ],
       ),
       body: WebView(
@@ -127,13 +169,62 @@ class _MyWebViewWidgetState extends State<MyWebViewWidget> {
             EasyLoading.dismiss();
           });
         },
-        
       ),
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () {},
-      //   tooltip: 'Increment',
-      //   child: const Icon(Icons.add),
-      // ), // This trailing comma makes auto-formatting nicer for build methods.
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          ClipboardData? cdata = await Clipboard.getData(Clipboard.kTextPlain);
+          if (cdata!.text != null) {
+            print("data===${cdata.text}");
+
+            if (cdata.text != null) {
+              DatabaseHelper helper = DatabaseHelper.instance;
+              MyNewWords word = MyNewWords();
+              word.title = cdata.text;
+              MyNewWords? fetch = await helper.search(cdata.text);
+              if (fetch == null) {
+                helper.insert(word);
+                print('insert new words....');
+              }
+            }
+            showModalBottomSheet(
+                context: context,
+                builder: (context) {
+                  return ListView(
+                    children: [
+                      Container(
+                        height: 6000,
+                        child: WebView(
+                          javascriptMode: JavascriptMode.unrestricted,
+                          initialUrl: cambridgeAPI + (cdata.text ?? 'nothing'),
+                          onWebViewCreated: (controller) {},
+                          onPageStarted: (url) {
+                            print('==========================' + url);
+                            EasyLoading.show(status: 'Loading...');
+                          },
+                          onPageFinished: (url) {
+                            print('============onPageFinished==============' +
+                                url);
+                            EasyLoading.dismiss();
+                          },
+                          onProgress: (value) {
+                            if (value == 100) EasyLoading.dismiss();
+
+                            Timer(const Duration(seconds: 3), () {
+                              EasyLoading.dismiss();
+                            });
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                });
+          } else {
+            print('Nothing copied...');
+          }
+        },
+        tooltip: 'Increment',
+        child: const Icon(Icons.book_online),
+      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
